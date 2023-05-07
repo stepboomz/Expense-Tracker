@@ -17,7 +17,6 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // collect user input
   final _textcontrollerAMOUNT = TextEditingController();
   final _textcontrollerITEM = TextEditingController();
   final _formKey = GlobalKey<FormState>();
@@ -205,7 +204,6 @@ class _HomePageState extends State<HomePage> {
         });
   }
 
-  // wait for the data to be fetched from google sheets
   void startLoading() {
     timerHasStarted = true;
     Timer.periodic(Duration(seconds: 1), (timer) {
@@ -218,11 +216,9 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    // start loading until the data arrives
     if (GoogleSheetsApi.loading == true && timerHasStarted == false) {
       startLoading();
     }
-
     return Scaffold(
       backgroundColor: Colors.grey[300],
       body: Padding(
@@ -239,7 +235,6 @@ class _HomePageState extends State<HomePage> {
               income: GoogleSheetsApi.calculateIncome().toString(),
               expense: GoogleSheetsApi.calculateExpense().toString(),
             ),
-            // ...
             Padding(
                 padding: const EdgeInsets.all(15.0),
                 child: Row(
@@ -247,8 +242,7 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     Text(
                         '${_selectedDate != null ? DateFormat('dd-MM-yyyy').format(_selectedDate!) : ''}',
-                        style: TextStyle(fontSize: 20, color: Colors.red)),
-                    // Add the following code to display the selected date's income and expense
+                        style: TextStyle(fontSize: 18, color: Colors.red)),
                     if (_selectedDate != null)
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -265,8 +259,6 @@ class _HomePageState extends State<HomePage> {
                       ),
                   ],
                 )),
-// ...
-
             Expanded(
               child: GoogleSheetsApi.loading == true
                   ? LoadingCircle()
@@ -275,12 +267,9 @@ class _HomePageState extends State<HomePage> {
                       itemBuilder: (context, index) {
                         final transaction =
                             GoogleSheetsApi.currentTransactions[index];
-
-                        // Check if the transaction has at least 4 elements
                         if (transaction.length < 4) {
                           return SizedBox.shrink();
                         }
-
                         final dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
                         final transactionDate =
                             dateFormat.parse(transaction[3]);
@@ -288,29 +277,21 @@ class _HomePageState extends State<HomePage> {
                             transactionDate.year,
                             transactionDate.month,
                             transactionDate.day);
-
-                        // กรองรายการที่มีวันที่ตรงกับวันที่ที่เลือก
                         if (_selectedDate == null ||
                             transactionDateOnly == _selectedDate) {
-                          // เปลี่ยนแปลงรูปแบบวันที่เป็นรูปแบบสั้นก่อนส่งค่าให้กับ MyTransaction
                           final shortDateFormat = DateFormat('dd-MM-yyyy');
                           final transactionDateFormatted =
                               shortDateFormat.format(transactionDate);
-
                           return MyTransaction(
                             transactionName: transaction[0],
                             money: transaction[1],
                             expenseOrIncome: transaction[2],
                             onDelete: () => _deleteTransaction(index),
                             transactionDate: transactionDateFormatted,
-                            // ...
                             onEdit: () async {
-                              // Convert transaction from List<dynamic> to List<String>
                               List<String> transactionStrings = transaction
                                   .map((dynamic value) => value.toString())
                                   .toList();
-
-                              // Display the edit transaction dialog
                               final bool? updated = await showDialog<bool>(
                                 context: context,
                                 builder: (BuildContext context) {
@@ -320,9 +301,7 @@ class _HomePageState extends State<HomePage> {
                                   );
                                 },
                               );
-
                               if (updated != null && updated) {
-                                // Update the UI, for example by calling a function that fetches transactions and updates the state
                                 _fetchAndUpdateTransactions();
                               }
                             },
