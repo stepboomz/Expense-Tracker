@@ -36,6 +36,14 @@ class GoogleSheetsApi {
   }) async {
     if (_worksheet == null) return;
 
+    // Update the transaction in currentTransactions
+    currentTransactions[rowIndex] = [
+      transactionName,
+      money,
+      expenseOrIncome,
+      currentTransactions[rowIndex][3], // Keep the original date
+    ];
+
     await _worksheet!.values.insertValue(
       transactionName,
       column: 1,
@@ -75,6 +83,8 @@ class GoogleSheetsApi {
     }
   }
 
+  // dateFormat.format(getDateFromExcelValue(double.parse(row[3]))),
+
   static Future fetchAndUpdateTransactions() async {
     if (_worksheet == null) return;
 
@@ -107,7 +117,7 @@ class GoogleSheetsApi {
     loadTransactions();
   }
 
-  // load existing notes from the spreadsheet
+  // load existing transactions from the spreadsheet
   static Future loadTransactions() async {
     if (_worksheet == null) return;
 
@@ -130,6 +140,13 @@ class GoogleSheetsApi {
         ]);
       }
     }
+    // Sort the transactions in descending order by date
+    currentTransactions.sort((a, b) {
+      DateTime dateA = DateFormat("yyyy-MM-dd HH:mm:ss").parse(a[3]);
+      DateTime dateB = DateFormat("yyyy-MM-dd HH:mm:ss").parse(b[3]);
+      return dateB.compareTo(dateA);
+    });
+
     print(currentTransactions);
     // this will stop the circular loading indicator
     loading = false;
@@ -158,6 +175,12 @@ class GoogleSheetsApi {
 
     // Fetch and update transactions after inserting a new one
     await fetchAndUpdateTransactions();
+    // Sort the transactions in descending order by date
+    currentTransactions.sort((a, b) {
+      DateTime dateA = DateFormat("yyyy-MM-dd HH:mm:ss").parse(a[3]);
+      DateTime dateB = DateFormat("yyyy-MM-dd HH:mm:ss").parse(b[3]);
+      return dateB.compareTo(dateA);
+    });
   }
 
   // CALCULATE THE TOTAL INCOME!

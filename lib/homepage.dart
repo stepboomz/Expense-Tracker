@@ -67,6 +67,70 @@ class _HomePageState extends State<HomePage> {
     return totalExpense;
   }
 
+  Map<String, int> _calculateIncomeExpenseByDate(DateTime date) {
+    int totalIncome = 0;
+    int totalExpense = 0;
+
+    for (var transaction in GoogleSheetsApi.currentTransactions) {
+      if (transaction.length < 4) {
+        continue;
+      }
+      final dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+      final transactionDate = dateFormat.parse(transaction[3]);
+      final transactionDateOnly = DateTime(
+          transactionDate.year, transactionDate.month, transactionDate.day);
+
+      if (transactionDateOnly == date) {
+        if (transaction[2] == 'income') {
+          totalIncome += int.parse(transaction[1]);
+        } else if (transaction[2] == 'expense') {
+          totalExpense += int.parse(transaction[1]);
+        }
+      }
+    }
+
+    return {'income': totalIncome, 'expense': totalExpense};
+  }
+
+  List<Widget> _buildDailyIncomeExpenseWidgets(DateTime date) {
+    int totalIncome = 0;
+    int totalExpense = 0;
+
+    for (var transaction in GoogleSheetsApi.currentTransactions) {
+      if (transaction.length < 4) {
+        continue;
+      }
+
+      final dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+      final transactionDate = dateFormat.parse(transaction[3]);
+      final transactionDateOnly = DateTime(
+          transactionDate.year, transactionDate.month, transactionDate.day);
+
+      if (transactionDateOnly == date) {
+        if (transaction[2] == 'income') {
+          totalIncome += int.parse(transaction[1]);
+        } else if (transaction[2] == 'expense') {
+          totalExpense += int.parse(transaction[1]);
+        }
+      }
+    }
+
+    int total = totalIncome - totalExpense;
+    Color color = total >= 0 ? Colors.green : Colors.red;
+
+    return [
+      Text(
+        DateFormat('dd-MM-yyyy').format(date),
+        style: TextStyle(fontSize: 18, color: Colors.grey),
+      ),
+      SizedBox(width: 10),
+      Text(
+        ' ${NumberFormat('#,###').format(total)} ฿',
+        style: TextStyle(fontSize: 18, color: color),
+      ),
+    ];
+  }
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -235,6 +299,28 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
+  //จัดกลุ่มรายการตามวันที่
+  Map<String, List<List<dynamic>>> get groupedTransactions {
+    final Map<String, List<List<dynamic>>> grouped = {};
+
+    for (List<dynamic> transaction in GoogleSheetsApi.currentTransactions) {
+      if (transaction.length < 4) continue;
+
+      final DateFormat dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+      final DateTime transactionDate = dateFormat.parse(transaction[3]);
+      final String transactionDateOnly =
+          DateFormat('dd-MM-yyyy').format(transactionDate);
+
+      if (grouped.containsKey(transactionDateOnly)) {
+        grouped[transactionDateOnly]!.add(transaction);
+      } else {
+        grouped[transactionDateOnly] = [transaction];
+      }
+    }
+
+    return grouped;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (GoogleSheetsApi.loading == true && timerHasStarted == false) {
@@ -259,81 +345,96 @@ class _HomePageState extends State<HomePage> {
             SizedBox(
               height: 20,
             ),
-            // _selectedDate != null
-            //     ? MonthlyIncomeExpenseChart(
-            //         incomeExpense: _calculateMonthlyIncomeExpense())
-            //     : Container(),
-            Padding(
-                padding: const EdgeInsets.all(15.0),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                        '${_selectedDate != null ? DateFormat('dd-MM-yyyy').format(_selectedDate!) : ''}',
-                        style: TextStyle(fontSize: 18, color: Colors.red)),
-                    if (_selectedDate != null)
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'รายรับ: ${NumberFormat('#,###').format(_calculateSelectedDateIncome())} ฿',
-                            style: TextStyle(fontSize: 18, color: Colors.green),
-                          ),
-                          Text(
-                            'รายจ่าย: ${NumberFormat('#,###').format(_calculateSelectedDateExpense())} ฿',
-                            style: TextStyle(fontSize: 18, color: Colors.red),
-                          ),
-                        ],
-                      ),
-                  ],
-                )),
+
+            // MonthlyIncomeExpenseChart(
+            //     incomeExpense: _calculateMonthlyIncomeExpense()),
+
+            // Padding(
+            //     padding: const EdgeInsets.all(15.0),
+            //     child: Row(
+            //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            //       children: [
+            //         Text(
+            //             '${_selectedDate != null ? DateFormat('dd-MM-yyyy').format(_selectedDate!) : ''}',
+            //             style: TextStyle(fontSize: 18, color: Colors.red)),
+            //         if (_selectedDate != null)
+            //           Column(
+            //             crossAxisAlignment: CrossAxisAlignment.end,
+            //             children: [
+            //               Text(
+            //                 'รายรับ: ${NumberFormat('#,###').format(_calculateSelectedDateIncome())} ฿',
+            //                 style: TextStyle(fontSize: 18, color: Colors.green),
+            //               ),
+            //               Text(
+            //                 'รายจ่าย: ${NumberFormat('#,###').format(_calculateSelectedDateExpense())} ฿',
+            //                 style: TextStyle(fontSize: 18, color: Colors.red),
+            //               ),
+            //             ],
+            //           ),
+            //       ],
+            //     )),
             Expanded(
               child: GoogleSheetsApi.loading == true
                   ? LoadingCircle()
                   : ListView.builder(
-                      itemCount: GoogleSheetsApi.currentTransactions.length,
+                      itemCount: groupedTransactions.keys.length,
                       itemBuilder: (context, index) {
-                        final transaction =
-                            GoogleSheetsApi.currentTransactions[index];
-                        if (transaction.length < 4) {
-                          return SizedBox.shrink();
-                        }
-                        final dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
-                        final transactionDate =
-                            dateFormat.parse(transaction[3]);
-                        final transactionDateOnly = DateTime(
-                            transactionDate.year,
-                            transactionDate.month,
-                            transactionDate.day);
+                        final dateKey =
+                            groupedTransactions.keys.elementAt(index);
+                        final transactions = groupedTransactions[dateKey]!;
                         if (_selectedDate == null ||
-                            transactionDateOnly == _selectedDate) {
-                          final shortDateFormat = DateFormat('dd-MM-yyyy');
-                          final transactionDateFormatted =
-                              shortDateFormat.format(transactionDate);
-                          return MyTransaction(
-                            transactionName: transaction[0],
-                            money: transaction[1],
-                            expenseOrIncome: transaction[2],
-                            onDelete: () => _deleteTransaction(index),
-                            transactionDate: transactionDateFormatted,
-                            onEdit: () async {
-                              List<String> transactionStrings = transaction
-                                  .map((dynamic value) => value.toString())
-                                  .toList();
-                              final bool? updated = await showDialog<bool>(
-                                context: context,
-                                builder: (BuildContext context) {
-                                  return EditTransactionDialog(
-                                    transaction: transactionStrings,
-                                    rowIndex: index,
+                            DateFormat('dd-MM-yyyy').parse(dateKey) ==
+                                _selectedDate) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  // Text(
+                                  //   dateKey,
+                                  //   style: TextStyle(
+                                  //       fontSize: 18, color: Colors.grey),
+                                  // ),
+                                  SizedBox(width: 10),
+                                  ..._buildDailyIncomeExpenseWidgets(
+                                      DateFormat('dd-MM-yyyy').parse(dateKey)),
+                                ],
+                              ),
+                              SizedBox(
+                                height: 10,
+                              ),
+                              Column(
+                                children: transactions.map((transaction) {
+                                  return MyTransaction(
+                                    transactionName: transaction[0],
+                                    money: transaction[1],
+                                    expenseOrIncome: transaction[2],
+                                    onDelete: () => _deleteTransaction(index),
+                                    transactionDate: dateKey,
+                                    onEdit: () async {
+                                      List<String> transactionStrings =
+                                          transaction
+                                              .map((dynamic value) =>
+                                                  value.toString())
+                                              .toList();
+                                      final bool? updated =
+                                          await showDialog<bool>(
+                                        context: context,
+                                        builder: (BuildContext context) {
+                                          return EditTransactionDialog(
+                                            transaction: transactionStrings,
+                                            rowIndex: index,
+                                          );
+                                        },
+                                      );
+                                      if (updated != null && updated) {
+                                        _fetchAndUpdateTransactions();
+                                      }
+                                    },
                                   );
-                                },
-                              );
-                              if (updated != null && updated) {
-                                _fetchAndUpdateTransactions();
-                              }
-                            },
-                            // ...
+                                }).toList(),
+                              ),
+                            ],
                           );
                         } else {
                           return SizedBox.shrink();
@@ -341,6 +442,7 @@ class _HomePageState extends State<HomePage> {
                       },
                     ),
             ),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
