@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'package:expensetracker/EditTransactionScreen.dart';
+import 'package:expensetracker/barChart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'google_sheets_api.dart';
 import 'loading_circle.dart';
-import 'plus_button.dart';
+// import 'plus_button.dart';
 import 'top_card.dart';
 import 'transaction.dart';
 import 'package:intl/intl.dart';
@@ -100,6 +101,26 @@ class _HomePageState extends State<HomePage> {
   void _deleteTransaction(int index) async {
     await GoogleSheetsApi.deleteRow(index + 2);
     setState(() {});
+  }
+
+  //grap
+  List<double> _calculateMonthlyIncomeExpense() {
+    List<double> incomeExpense = List<double>.filled(12, 0);
+    for (var transaction in GoogleSheetsApi.currentTransactions) {
+      if (transaction.length < 4) {
+        continue;
+      }
+      final dateFormat = DateFormat('yyyy-MM-dd HH:mm:ss');
+      final transactionDate = dateFormat.parse(transaction[3]);
+      final transactionMonth = transactionDate.month;
+
+      if (transaction[2] == 'income') {
+        incomeExpense[transactionMonth - 1] += double.parse(transaction[1]);
+      } else if (transaction[2] == 'expense') {
+        incomeExpense[transactionMonth - 1] -= double.parse(transaction[1]);
+      }
+    }
+    return incomeExpense;
   }
 
   // new transaction
@@ -235,6 +256,13 @@ class _HomePageState extends State<HomePage> {
               income: GoogleSheetsApi.calculateIncome().toString(),
               expense: GoogleSheetsApi.calculateExpense().toString(),
             ),
+            SizedBox(
+              height: 20,
+            ),
+            // _selectedDate != null
+            //     ? MonthlyIncomeExpenseChart(
+            //         incomeExpense: _calculateMonthlyIncomeExpense())
+            //     : Container(),
             Padding(
                 padding: const EdgeInsets.all(15.0),
                 child: Row(
